@@ -10,6 +10,7 @@ A private, browser-based A4 CV editor. Import PDF or DOCX files, edit them local
 - Editable Word export for common text structures
 - Local autosave and IndexedDB version history
 - Multi-page documents with overflow warnings
+- Two-page IIM-style starter with compact tables and achievement-led sections
 - GitHub Pages deployment workflow
 
 ## Run locally
