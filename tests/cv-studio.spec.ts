@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('edits, paginates overflow, previews, saves, and resets', async ({ page }) => {
-  await page.goto('/')
+  await page.goto('./')
 
   await expect(page.getByRole('heading', { name: 'YOUR NAME' }).first()).toBeVisible()
   await expect(page.locator('.a4-page')).toHaveCount(1)
@@ -58,7 +58,7 @@ test('edits, paginates overflow, previews, saves, and resets', async ({ page }) 
 
 test('keeps the toolbar and export action available on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await page.goto('./')
 
   await expect(page.getByRole('navigation', { name: 'Formatting toolbar' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Export' })).toBeVisible()
