@@ -45,3 +45,14 @@ export async function getVersions(): Promise<SavedVersion[]> {
   database.close()
   return versions.sort((a, b) => b.savedAt - a.savedAt)
 }
+
+export async function clearVersions(): Promise<void> {
+  const database = await openDatabase()
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(STORE, 'readwrite')
+    transaction.objectStore(STORE).clear()
+    transaction.oncomplete = () => resolve()
+    transaction.onerror = () => reject(transaction.error)
+  })
+  database.close()
+}

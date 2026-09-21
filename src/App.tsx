@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Check, ChevronDown, Clock3, Download, Eye, FileImage, FilePenLine,
-  FileText, Italic, Link, Plus, Printer, Redo2, Save, Sparkles, Underline, Undo2, Upload, X,
+  FileText, Italic, Link, Printer, Redo2, RotateCcw, Save, Sparkles, Underline, Undo2, Upload, X,
 } from 'lucide-react'
 import { A4Document } from './components/A4Document'
 import { starterDocument } from './data'
-import { getVersions, saveVersion } from './storage/indexedDb'
+import { clearVersions, getVersions, saveVersion } from './storage/indexedDb'
 import type { CvDocument, SavedVersion } from './types'
 
 const LOCAL_KEY = 'cv-studio-current-document'
@@ -26,10 +26,12 @@ export default function App() {
   const [notice, setNotice] = useState('Ready')
   const [exportOpen, setExportOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [resetOpen, setResetOpen] = useState(false)
   const [versions, setVersions] = useState<SavedVersion[]>([])
   const [overflowing, setOverflowing] = useState<Set<string>>(new Set())
   const fileInput = useRef<HTMLInputElement>(null)
   const pageElements = useRef(new Map<string, HTMLElement>())
+  const paginationLock = useRef(false)
 
   const persist = useCallback(async (label = 'Autosave') => {
     setSavedState('saving')
@@ -86,7 +88,10 @@ export default function App() {
     setDocument((current) => ({
       ...current,
       updatedAt: Date.now(),
-      pages: current.pages.map((page) => page.id === pageId ? { ...page, html } : page),
+      pages: current.pages
+        .map((page) => page.id === pageId ? { ...page, html } : page)
+        // Automatically remove a later page once the user clears all of it.
+        .filter((page, index) => index === 0 || page.html.replace(/<[^>]*>|&nbsp;/g, '').trim()),
     }))
     setSavedState('saving')
   }
@@ -106,14 +111,6 @@ export default function App() {
     } finally {
       if (fileInput.current) fileInput.current.value = ''
     }
-  }
-
-  function addPage() {
-    setDocument((current) => ({
-      ...current,
-      updatedAt: Date.now(),
-      pages: [...current.pages, { id: crypto.randomUUID(), html: '<section><h2>New section</h2><p>Start writing here…</p></section>' }],
-    }))
   }
 
   function pagesForExport() {
@@ -142,12 +139,58 @@ export default function App() {
     setNotice(`Restored ${version.label}`)
   }
 
+  async function resetWorkspace() {
+    // Reset removes only browser-local CV data; it never touches imported files.
+    localStorage.removeItem(LOCAL_KEY)
+    await clearVersions()
+    setVersions([])
+    setDocument(starterDocument())
+    setResetOpen(false)
+    setMode('edit')
+    setNotice('Workspace reset to the starter template')
+  }
+
   const registerPage = useCallback((id: string, element: HTMLElement | null) => {
     if (element) pageElements.current.set(id, element)
     else pageElements.current.delete(id)
   }, [])
 
   const reportOverflow = useCallback((id: string, isOverflowing: boolean) => {
+    if (isOverflowing && !paginationLock.current) {
+      const element = pageElements.current.get(id)
+      if (element) {
+        const movedBlocks: string[] = []
+        // Move complete top-level sections to the next page until this page fits.
+        // Keeping blocks intact avoids splitting a table or heading from its body.
+        while (element.scrollHeight > element.clientHeight + 2 && element.children.length > 1) {
+          const lastBlock = element.lastElementChild as HTMLElement | null
+          if (!lastBlock) break
+          movedBlocks.unshift(lastBlock.outerHTML)
+          lastBlock.remove()
+        }
+
+        if (movedBlocks.length > 0) {
+          paginationLock.current = true
+          const retainedHtml = element.innerHTML
+          setDocument((current) => {
+            const pageIndex = current.pages.findIndex((page) => page.id === id)
+            if (pageIndex < 0) return current
+            const pages = [...current.pages]
+            pages[pageIndex] = { ...pages[pageIndex], html: retainedHtml }
+            const continuation = movedBlocks.join('')
+            if (pages[pageIndex + 1]) {
+              pages[pageIndex + 1] = { ...pages[pageIndex + 1], html: continuation + pages[pageIndex + 1].html }
+            } else {
+              pages.push({ id: crypto.randomUUID(), html: continuation })
+            }
+            return { ...current, pages, updatedAt: Date.now() }
+          })
+          window.requestAnimationFrame(() => { paginationLock.current = false })
+          return
+        }
+      }
+    }
+
     setOverflowing((current) => {
       const next = new Set(current)
       if (isOverflowing) next.add(id)
@@ -160,7 +203,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <div className="brand-mark"><FileText size={20} /></div>
+          <div className="brand-mark"><img src={`${import.meta.env.BASE_URL}iim-mumbai-logo.png`} alt="IIM Mumbai" /></div>
           <div><strong>CV Studio</strong><span>Private by design</span></div>
         </div>
         <div className="document-name">
@@ -168,6 +211,7 @@ export default function App() {
           <span className="save-state">{savedState === 'saved' ? <Check size={13} /> : <span className="spinner" />} {savedState === 'saved' ? 'Saved locally' : 'Saving'}</span>
         </div>
         <div className="top-actions">
+          <button className="button ghost" onClick={() => setResetOpen(true)}><RotateCcw size={17} /> Reset</button>
           <button className="button ghost" onClick={() => setHistoryOpen(true)}><Clock3 size={17} /> History</button>
           <button className="button ghost" onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>
             {mode === 'edit' ? <Eye size={17} /> : <FilePenLine size={17} />} {mode === 'edit' ? 'Preview' : 'Edit'}
@@ -206,22 +250,34 @@ export default function App() {
           <div><span className="eyebrow">{mode === 'edit' ? 'EDITOR' : 'PRINT PREVIEW'}</span><strong>{document.pages.length} {document.pages.length === 1 ? 'page' : 'pages'} · A4</strong></div>
           {mode === 'preview' && <button className="button ghost" onClick={() => window.print()}><Printer size={17} /> Print</button>}
         </div>
-        {overflowing.size > 0 && mode === 'edit' && <div className="overflow-warning">One or more pages overflow the A4 boundary. Add a page and move content before exporting.</div>}
+        {overflowing.size > 0 && mode === 'edit' && <div className="overflow-warning">A single content block is taller than one A4 page. Shorten or split that block so it can paginate cleanly.</div>}
         <A4Document pages={document.pages} editable={mode === 'edit'} onChange={updatePage} registerPage={registerPage} onOverflow={reportOverflow} />
-        {mode === 'edit' && <button className="add-page" onClick={addPage}><Plus /> Add A4 page</button>}
       </main>
 
       <footer><span>{notice}</span><span>CV Studio · Local-first editor</span></footer>
 
       {historyOpen && <div className="modal-backdrop" onMouseDown={() => setHistoryOpen(false)}>
         <aside className="history-panel" onMouseDown={(event) => event.stopPropagation()}>
-          <div className="panel-head"><div><span className="eyebrow">LOCAL HISTORY</span><h2>Version history</h2></div><button onClick={() => setHistoryOpen(false)}><X /></button></div>
+          <div className="panel-head"><div><span className="eyebrow">LOCAL HISTORY</span><h2>Version history</h2></div><button aria-label="Close" onClick={() => setHistoryOpen(false)}><X /></button></div>
           <p>Snapshots are stored in this browser using IndexedDB. They are not uploaded anywhere.</p>
           <button className="button primary wide" onClick={() => void persist('Named version')}>Save a version now</button>
           <div className="version-list">{versions.length === 0 ? <div className="empty">Your saved versions will appear here.</div> : versions.map((version) => (
             <button key={version.id} onClick={() => restore(version)}><span><strong>{version.label}</strong><small>{new Date(version.savedAt).toLocaleString()}</small></span><span>Restore</span></button>
           ))}</div>
         </aside>
+      </div>}
+
+      {resetOpen && <div className="modal-backdrop reset-backdrop" onMouseDown={() => setResetOpen(false)}>
+        <section className="reset-modal" role="dialog" aria-modal="true" aria-labelledby="reset-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="reset-icon"><RotateCcw /></div>
+          <span className="eyebrow">START FRESH</span>
+          <h2 id="reset-title">Reset this workspace?</h2>
+          <p>This will delete the current browser-saved CV and its local version history, then restore the two-page starter. Your original PDF and DOCX files will not be changed.</p>
+          <div className="reset-actions">
+            <button className="button ghost" onClick={() => setResetOpen(false)}>Cancel</button>
+            <button className="button destructive" onClick={() => void resetWorkspace()}>Reset workspace</button>
+          </div>
+        </section>
       </div>}
     </div>
   )

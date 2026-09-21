@@ -4,7 +4,7 @@ const id = () => crypto.randomUUID()
 
 const header = `<header class="reference-header">
   <div class="identity-block"><h1>YOUR NAME</h1><p>Age · Pronouns</p><p>MBA, Batch 20XX – XX</p></div>
-  <div class="institute-lockup"><span class="institute-mark">IIM</span><span><strong>IIM MUMBAI</strong><small>Indian Institute of Management Mumbai</small></span></div>
+  <div class="institute-lockup"><img src="./iim-mumbai-logo.png" alt="IIM Mumbai"><span><strong>IIM MUMBAI</strong><small>Indian Institute of Management Mumbai</small></span></div>
 </header>
 <div class="profile-band">Process Analyst | Digital Strategist | Tech Enthusiast | Problem Solver</div>`
 
@@ -45,11 +45,6 @@ export const starterDocument = (): CvDocument => ({
         </tbody></table>
         <div class="entry-head second-entry"><strong>Project Title: Business Process Improvement</strong><strong>6 Weeks</strong></div>
         <table class="detail-table"><tbody><tr><th>Project Details</th><td><ul><li>Mapped the existing process, isolated bottlenecks, and proposed a measurable future-state workflow</li><li>Validated recommendations with users and translated findings into an implementation roadmap</li></ul></td></tr></tbody></table>`)}
-      <p class="page-number">1 / 2</p>`,
-    },
-    {
-      id: id(),
-      html: `${header}
       ${section('Positions of Responsibility', `<table class="responsibility-table"><tbody>
         <tr><th>Events &amp; Outreach<br>Head</th><td><ul><li>Led content strategy, CRM, and outreach operations, achieving 28% growth in engagement</li><li>Built an audience segmentation framework to improve participation and query resolution</li><li>Negotiated with vendors and optimised resources to deliver measurable cost savings</li></ul></td><td>20XX<br>20XX<br>20XX</td></tr>
         <tr><th>PR Executive</th><td><ul><li>Executed targeted campaigns involving national and international stakeholders</li><li>Managed social channels and increased impressions through analytics-led content</li><li>Improved engagement using search-optimised calls to action</li></ul></td><td>20XX<br>20XX<br>20XX</td></tr>
@@ -60,11 +55,7 @@ export const starterDocument = (): CvDocument => ({
         <tr><th>Certifications</th><td><ul><li>Completed an industry certification in business intelligence and analytics</li><li>Developed practical proficiency in operations management and process design</li><li>Completed advanced coursework in negotiation and stakeholder management</li></ul></td><td>20XX<br>20XX<br>20XX</td></tr>
         <tr><th>Extra-Curriculars</th><td><ul><li>Ranked among the top teams in a national case competition</li><li>Volunteered for an education initiative and mentored students from underserved communities</li><li>Participated in a leadership programme focused on discipline and team coordination</li></ul></td><td>20XX<br>20XX<br>20XX</td></tr>
       </tbody></table>`)}
-      ${section('Additional Information', `<table class="responsibility-table"><tbody>
-        <tr><th>Skills</th><td colspan="2"><strong>Business:</strong> Strategy, market research, financial modelling, stakeholder management<br><strong>Tools:</strong> Excel, PowerPoint, Power BI, SQL, Python</td></tr>
-        <tr><th>Interests</th><td colspan="2">Technology · Public policy · Literature · Community building</td></tr>
-      </tbody></table>`)}
-      <p class="cv-footer-link"><a href="https://linkedin.com/in/your-profile">linkedin.com/in/your-profile</a></p><p class="page-number">2 / 2</p>`,
+      <p class="cv-footer-link"><a href="https://linkedin.com/in/your-profile">linkedin.com/in/your-profile</a></p>`,
     },
   ],
 })
