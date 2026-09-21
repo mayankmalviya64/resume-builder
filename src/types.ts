@@ -7,6 +7,14 @@ export type CvDocument = {
   title: string
   updatedAt: number
   pages: CvPage[]
+  margins: PageMargins
+}
+
+export type PageMargins = {
+  top: number
+  right: number
+  bottom: number
+  left: number
 }
 
 export type SavedVersion = {

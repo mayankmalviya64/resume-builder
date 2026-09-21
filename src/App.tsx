@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Bold, Check, ChevronDown, Clock3, Download, Eye, FileImage, FilePenLine,
-  FileText, Italic, Link, Printer, Redo2, RotateCcw, Save, Sparkles, Underline, Undo2, Upload, X,
+  FileText, Italic, Link, Printer, Redo2, RotateCcw, Save, Settings2, Sparkles, Underline, Undo2, Upload, X,
 } from 'lucide-react'
 import { A4Document } from './components/A4Document'
 import { starterDocument } from './data'
 import { clearVersions, getVersions, saveVersion } from './storage/indexedDb'
-import type { CvDocument, SavedVersion } from './types'
+import type { CvDocument, PageMargins, SavedVersion } from './types'
 
 const LOCAL_KEY = 'cv-studio-current-document'
 
 function loadDocument(): CvDocument {
   try {
     const saved = localStorage.getItem(LOCAL_KEY)
-    return saved ? JSON.parse(saved) : starterDocument()
+    if (!saved) return starterDocument()
+    const parsed = JSON.parse(saved) as Partial<CvDocument>
+    return {
+      ...starterDocument(),
+      ...parsed,
+      margins: parsed.margins ?? { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 },
+    }
   } catch {
     return starterDocument()
   }
@@ -27,6 +33,7 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const [pageSetupOpen, setPageSetupOpen] = useState(false)
   const [versions, setVersions] = useState<SavedVersion[]>([])
   const [overflowing, setOverflowing] = useState<Set<string>>(new Set())
   const fileInput = useRef<HTMLInputElement>(null)
@@ -104,7 +111,7 @@ export default function App() {
       // Import parsers are large, so load them only when the user chooses a file.
       const { importDocx, importPdf } = await import('./import/importers')
       const pages = extension === 'pdf' ? await importPdf(file) : await importDocx(file)
-      setDocument({ title: file.name.replace(/\.(pdf|docx)$/i, ''), pages, updatedAt: Date.now() })
+      setDocument((current) => ({ title: file.name.replace(/\.(pdf|docx)$/i, ''), pages, margins: current.margins, updatedAt: Date.now() }))
       setNotice(`Imported ${file.name}`)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Could not import that file')
@@ -148,6 +155,15 @@ export default function App() {
     setResetOpen(false)
     setMode('edit')
     setNotice('Workspace reset to the starter template')
+  }
+
+  function updateMargin(side: keyof PageMargins, rawValue: string) {
+    const value = Math.max(0, Math.min(2, Number(rawValue) || 0))
+    setDocument((current) => ({
+      ...current,
+      updatedAt: Date.now(),
+      margins: { ...current.margins, [side]: value },
+    }))
   }
 
   const registerPage = useCallback((id: string, element: HTMLElement | null) => {
@@ -211,6 +227,7 @@ export default function App() {
           <span className="save-state">{savedState === 'saved' ? <Check size={13} /> : <span className="spinner" />} {savedState === 'saved' ? 'Saved locally' : 'Saving'}</span>
         </div>
         <div className="top-actions">
+          <button className="button ghost" onClick={() => setPageSetupOpen(true)}><Settings2 size={17} /> Page setup</button>
           <button className="button ghost" onClick={() => setResetOpen(true)}><RotateCcw size={17} /> Reset</button>
           <button className="button ghost" onClick={() => setHistoryOpen(true)}><Clock3 size={17} /> History</button>
           <button className="button ghost" onClick={() => setMode(mode === 'edit' ? 'preview' : 'edit')}>
@@ -251,7 +268,7 @@ export default function App() {
           {mode === 'preview' && <button className="button ghost" onClick={() => window.print()}><Printer size={17} /> Print</button>}
         </div>
         {overflowing.size > 0 && mode === 'edit' && <div className="overflow-warning">A single content block is taller than one A4 page. Shorten or split that block so it can paginate cleanly.</div>}
-        <A4Document pages={document.pages} editable={mode === 'edit'} onChange={updatePage} registerPage={registerPage} onOverflow={reportOverflow} />
+        <A4Document pages={document.pages} margins={document.margins} editable={mode === 'edit'} onChange={updatePage} registerPage={registerPage} onOverflow={reportOverflow} />
       </main>
 
       <footer><span>{notice}</span><span>CV Studio · Local-first editor</span></footer>
@@ -277,6 +294,22 @@ export default function App() {
             <button className="button ghost" onClick={() => setResetOpen(false)}>Cancel</button>
             <button className="button destructive" onClick={() => void resetWorkspace()}>Reset workspace</button>
           </div>
+        </section>
+      </div>}
+
+      {pageSetupOpen && <div className="modal-backdrop reset-backdrop" onMouseDown={() => setPageSetupOpen(false)}>
+        <section className="reset-modal page-setup-modal" role="dialog" aria-modal="true" aria-labelledby="page-setup-title" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="reset-icon"><Settings2 /></div>
+          <span className="eyebrow">A4 PAGE</span>
+          <h2 id="page-setup-title">Page margins</h2>
+          <p>Set each margin in inches. The default is 0.5 inches on every side.</p>
+          <div className="margin-grid">
+            {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
+              <label key={side}><span>{side}</span><div><input type="number" min="0" max="2" step="0.05" value={document.margins[side]} onChange={(event) => updateMargin(side, event.target.value)} /><small>in</small></div></label>
+            ))}
+          </div>
+          <div className="page-setup-note">Increasing margins reduces usable space and may create a continuation page automatically.</div>
+          <div className="reset-actions"><button className="button primary" onClick={() => setPageSetupOpen(false)}>Done</button></div>
         </section>
       </div>}
     </div>

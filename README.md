@@ -13,6 +13,8 @@ A private, browser-based A4 CV editor. Import PDF or DOCX files, edit them local
 - One-page IIM-style starter that creates continuation pages only when content overflows
 - Confirmed reset control for clearing the local draft and restoring the starter
 - IIM Mumbai logo-led navy and orange visual theme
+- Draggable table-column boundaries with saved widths
+- Independent A4 margins in inches, defaulting to 0.5 on every side
 - GitHub Pages deployment workflow
 
 ## Run locally
